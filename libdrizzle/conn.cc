@@ -1465,6 +1465,7 @@ static drizzle_return_t _setsockopt(drizzle_st *con)
 {
   struct linger linger;
   struct timeval waittime;
+  int keepalive, keepidle, keepcnt, keepintvl;
 
   assert(con);
   if (con == NULL)
@@ -1553,6 +1554,67 @@ static drizzle_return_t _setsockopt(drizzle_st *con)
   {
     drizzle_set_error(con, __func__,
                       "setsockopt:SO_RCVTIMEO:%s", strerror(errno));
+    return DRIZZLE_RETURN_ERRNO;
+  }
+
+  keepalive = 1;
+#ifdef _WIN32
+  ret= setsockopt(con->fd, SOL_SOCKET, SO_KEEPALIVE, (const char*)&keepalive,
+                  (socklen_t)sizeof(keepalive));
+#else
+  ret= setsockopt(con->fd, SOL_SOCKET, SO_KEEPALIVE, &keepalive,
+                  (socklen_t)sizeof(keepalive));
+#endif /* _WIN32 */
+
+  if (ret == -1 && errno != ENOPROTOOPT)
+  {
+    drizzle_set_error(con, __func__,
+                      "setsockopt:SO_KEEPALIVE:%s", strerror(errno));
+    return DRIZZLE_RETURN_ERRNO;
+  }
+
+  keepidle = 5;
+#ifdef _WIN32
+  ret= setsockopt(con->fd, IPPROTO_TCP, TCP_KEEPIDLE, (const char*)&keepidle,
+                  (socklen_t)sizeof(keepidle));
+#else
+  ret= setsockopt(con->fd, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle,
+                  (socklen_t)sizeof(keepidle));
+#endif /* _WIN32 */
+
+  if (ret == -1 && errno != EOPNOTSUPP)
+  {
+    drizzle_set_error(con, __func__, "setsockopt:TCP_KEEPIDLE:%s", strerror(errno));
+    return DRIZZLE_RETURN_ERRNO;
+  }
+
+  keepcnt = 3;
+#ifdef _WIN32
+  ret= setsockopt(con->fd, IPPROTO_TCP, TCP_KEEPCNT, (const char*)&keepcnt,
+                  (socklen_t)sizeof(keepcnt));
+#else
+  ret= setsockopt(con->fd, IPPROTO_TCP, TCP_KEEPCNT, &keepcnt,
+                  (socklen_t)sizeof(keepcnt));
+#endif /* _WIN32 */
+
+  if (ret == -1 && errno != EOPNOTSUPP)
+  {
+    drizzle_set_error(con, __func__, "setsockopt:TCP_KEEPCNT:%s", strerror(errno));
+    return DRIZZLE_RETURN_ERRNO;
+  }
+
+  keepintvl = 3;
+#ifdef _WIN32
+  ret= setsockopt(con->fd, IPPROTO_TCP, TCP_KEEPINTVL, (const char*)&keepintvl,
+                  (socklen_t)sizeof(keepintvl));
+#else
+  ret= setsockopt(con->fd, IPPROTO_TCP, TCP_KEEPINTVL, &keepintvl,
+                  (socklen_t)sizeof(keepintvl));
+#endif /* _WIN32 */
+
+  if (ret == -1 && errno != EOPNOTSUPP)
+  {
+    drizzle_set_error(con, __func__, "setsockopt:TCP_KEEPINTVL:%s", strerror(errno));
     return DRIZZLE_RETURN_ERRNO;
   }
 
